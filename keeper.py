@@ -1,6 +1,7 @@
 import time
 from pyautogui import press
 import sys
+import shutil
 from random import uniform
 import optparse
 import logging
@@ -27,6 +28,18 @@ ACTIVE_TIME_MINUTES = 360
 # Maximum number of iterations to prevent infinite loops in case of errors
 LOOP_MAX = 1000
 
+def _status_line(message: str) -> None:
+    """Rewrite the current console line (no scroll) for live progress."""
+    try:
+        width = max(1, shutil.get_terminal_size().columns - 1)
+    except OSError:
+        width = 79
+    if len(message) > width:
+        message = message[: max(0, width - 3)] + "..."
+    sys.stdout.write("\r" + message.ljust(width))
+    sys.stdout.flush()
+
+
 def init(_opt, _start_time):
     counter = 0
     while counter < LOOP_MAX and time.time() < _start_time:
@@ -37,8 +50,8 @@ def init(_opt, _start_time):
 
         # 2. Press the specified key
         press(_opt.key)
-        # Print confirmation if you want verbose output
-        logging.info(f"#{counter} '{_opt.key}' key pressed at {time.strftime('%H:%M:%S')}. Waiting for {wait_time:.2f} seconds...")
+        if logging.getLogger().isEnabledFor(logging.INFO):
+            _status_line(f"[INFO]: #{counter} '{_opt.key}' pressed at {time.strftime('%H:%M:%S')} — next in {wait_time:.2f}s")
 
         # 3. Wait for the calculated time
         time.sleep(wait_time)
@@ -70,10 +83,16 @@ if __name__ == '__main__':
 
     try:
         init(opt, start_time)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
     except KeyboardInterrupt:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
         logging.info("Script stopped by user (Ctrl+C). Exiting.")
         sys.exit(0)
     except Exception as e:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
         logging.error(f"An error occurred: {e}")
         logging.error("Please ensure necessary permissions are granted.")
         sys.exit(1)
